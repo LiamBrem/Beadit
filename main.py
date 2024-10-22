@@ -1,7 +1,10 @@
 import os
-from moviepy.editor import VideoFileClip
+from moviepy.editor import VideoFileClip, AudioFileClip
 from beat_detection import detect_beats  # Importing the function from beat_detection.py
 from video_stitching import stitch_clips_together
+import numpy as np
+from pydub import AudioSegment
+from pydub.silence import detect_nonsilent
 
 def list_videos_in_folder(folder_path):
     video_extensions = ('.mp4', '.avi', '.mov', '.mkv')
@@ -16,19 +19,49 @@ def list_videos_in_folder(folder_path):
         print(f"An error occurred: {e}")
         return []
 
-def mov_to_mp3(input_file, output_file):
+def mov_to_mp3(input_file, output_file, silence_threshold=-50, chunk_size=10):
     try:
+        # Load the video and extract the audio
         video = VideoFileClip(input_file)
         audio = video.audio
-        audio.write_audiofile(output_file, codec='mp3')
+
+        if not audio:
+            raise ValueError("No audio track found in the video file.")
+        
+        # Export the audio to a temporary file for processing with pydub
+        temp_audio_path = output_file.replace('.mp3', '.wav')
+        audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
         audio.close()
         video.close()
-        print(f"Conversion complete: {output_file}")
+
+        # Load the audio with pydub for silence detection and trimming
+        sound = AudioSegment.from_wav(temp_audio_path)
+        
+        # Detect non-silent parts of the audio
+        nonsilent_ranges = detect_nonsilent(sound, min_silence_len=500, silence_thresh=silence_threshold)
+
+        if nonsilent_ranges:
+            # Extract audio from the first non-silent part to the end
+            start_trim = nonsilent_ranges[0][0]
+            trimmed_audio = sound[start_trim:]
+            
+            # Export the trimmed audio to MP3
+            trimmed_audio.export(output_file, format="mp3")
+            print(f"Audio trimmed and conversion complete: {output_file}")
+        else:
+            print("No non-silent parts detected; audio might be silent throughout.")
+        
+        # Clean up temporary file
+        os.remove(temp_audio_path)
+        
     except FileNotFoundError:
         print(f"File {input_file} not found.")
+    except ValueError as ve:
+        print(ve)
     except Exception as e:
         print(f"An error occurred during conversion: {e}")
 
+        
 def list_audio_files_in_folder(folder_path):
     audio_extensions = ('.mp3',)
     try:

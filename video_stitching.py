@@ -4,88 +4,124 @@ import os
 
 
 def load_audio(audio_file):
+    """Load the audio file."""
     return AudioFileClip(audio_file)
 
 def get_sorted_video_files(video_files):
-    return sorted(video_files, key=lambda x: int(x.split("IMG_")[-1].split('.')[0]))
+    """Sort video files by number in the filename (assuming IMG_xxx format)."""
+    valid_videos = []
+    
+    for file_name in video_files:
+        try:
+            # Only include files that match the "IMG_xxx" pattern
+            if file_name.startswith("IMG_"):
+                # Extract the number and append the valid video file to the list
+                int(file_name.split("IMG_")[-1].split('.')[0])
+                valid_videos.append(file_name)
+        except (IndexError, ValueError):
+            # Skip files that don't match the format
+            continue
+
+    return sorted(valid_videos, key=lambda x: int(x.split("IMG_")[-1].split('.')[0]))
 
 def select_video_file(sorted_video_files, used_videos, video_directory):
+    """Select the next unused video file."""
     for video_file in sorted_video_files:
         if video_file not in used_videos:
-            video_path = os.path.join(video_directory, video_file)
             used_videos.add(video_file)
-            return video_path
+            return os.path.join(video_directory, video_file)
     return None
 
-def create_video_clip(video_path, clip_duration, audio):
+def create_video_clip(video_path, start_time, end_time):
+    """Create a video clip from start_time to end_time."""
     video_clip = VideoFileClip(video_path)
-    available_duration = min(video_clip.duration, clip_duration)
-    return video_clip.subclip(0, available_duration).set_audio(audio)
-
-def create_flash_clips(sorted_video_files, used_videos, audio, video_directory, beat_duration):
-    """Creates 4 flash clips, each lasting for a quarter of two beats."""
-    flash_clips = []
-    flash_duration = beat_duration / 2 / 4  # Each flash should be a quarter of two beats
-
-    for _ in range(4):
-        video_path = select_video_file(sorted_video_files, used_videos, video_directory)
-        if video_path and os.path.isfile(video_path):
-            try:
-                flash_clip = create_video_clip(video_path, flash_duration, audio)
-                flash_clips.append(flash_clip)
-            except Exception as e:
-                print(f"Error processing video {video_path} for flash effect: {e}")
-                continue
-    return flash_clips
+    return video_clip.subclip(0, min(end_time - start_time, video_clip.duration))
 
 def stitch_clips_together(audio_file, video_files, beat_times, video_directory):
+    """Stitch video clips together based on the beat times, switching clips on each beat."""
     clips = []
     audio = load_audio(audio_file)
-    min_duration = 0.25
-    max_duration = 3.0
-    used_videos = set()
     sorted_video_files = get_sorted_video_files(video_files)
-    current_beat_index = 0
+    used_videos = set()
 
-    # Select a random beat index for the flash sequence (ensuring it's not near the end)
-    flash_start_beat = random.randint(0, len(beat_times) - 3)  # Giving 2 beats for the flash
+    beat_index = 0
+    consecutive_beat_transitions = 0
 
-    while current_beat_index < len(beat_times):
-        # Calculate beat duration as the difference between consecutive beats
-        if current_beat_index < len(beat_times) - 1:
-            beat_duration = beat_times[current_beat_index + 1] - beat_times[current_beat_index]
+    while beat_index < len(beat_times) - 1:
+        # Determine how long to display the next video(s)
+        if consecutive_beat_transitions >= 4:
+            # After 4 consecutive beat transitions, allow other patterns
+            pattern = random.choice(["single_beat", "two_beat", "half_beat"])
+            consecutive_beat_transitions = 0  # Reset counter
         else:
-            beat_duration = max_duration  # If it's the last beat, use a default max duration
+            # 50% of the time, we must transition every beat for at least 4 times in a row
+            if consecutive_beat_transitions < 4:
+                pattern = "single_beat"
+            else:
+                # Mix in random patterns
+                pattern = random.choices(
+                    ["single_beat", "two_beat", "half_beat"], weights=[0.5, 0.25, 0.25]
+                )[0]
+        
+        if pattern == "single_beat":
+            # Transition on the current beat
+            start_time = beat_times[beat_index]
+            end_time = beat_times[beat_index + 1]
+            video_path = select_video_file(sorted_video_files, used_videos, video_directory)
 
-        if current_beat_index == flash_start_beat:
-            # Create flash sequence (4 clips over 2 beats)
-            flash_clips = create_flash_clips(sorted_video_files, used_videos, audio, video_directory, beat_duration)
-            if flash_clips:
-                clips.extend(flash_clips)
-                current_beat_index += 2  # Skip 2 beats after flash sequence
-            continue
+            if video_path is None:
+                print("All videos have been used. Exiting.")
+                break
 
-        # Normal video clip creation
-        clip_duration = random.uniform(min_duration, max_duration)
-        video_path = select_video_file(sorted_video_files, used_videos, video_directory)
+            try:
+                video_clip = create_video_clip(video_path, start_time, end_time)
+                clips.append(video_clip)
+                consecutive_beat_transitions += 1  # Increment the counter for consecutive beat transitions
+            except Exception as e:
+                print(f"Error processing video {video_path}: {e}")
 
-        if video_path is None:
-            print("All videos have been used. Exiting.")
-            break
+            beat_index += 1
 
-        if not os.path.isfile(video_path):
-            print(f"Warning: The file {video_path} does not exist.")
-            continue
+        elif pattern == "two_beat" and beat_index < len(beat_times) - 2:
+            # Use a single clip for two beats
+            start_time = beat_times[beat_index]
+            end_time = beat_times[beat_index + 2]
+            video_path = select_video_file(sorted_video_files, used_videos, video_directory)
 
-        try:
-            video_clip = create_video_clip(video_path, clip_duration, audio)
-            clips.append(video_clip)
-        except Exception as e:
-            print(f"Error processing video {video_path}: {e}")
-            continue
+            if video_path is None:
+                print("All videos have been used. Exiting.")
+                break
 
-        step = random.randint(1, 3)
-        current_beat_index += step
+            try:
+                video_clip = create_video_clip(video_path, start_time, end_time)
+                clips.append(video_clip)
+            except Exception as e:
+                print(f"Error processing video {video_path}: {e}")
+
+            consecutive_beat_transitions = 0  # Reset consecutive beat transitions
+            beat_index += 2  # Skip to the next 2-beat interval
+
+        elif pattern == "half_beat" and beat_index < len(beat_times) - 1:
+            # Use two clips, each for half a beat
+            for _ in range(2):
+                start_time = beat_times[beat_index]
+                half_beat_duration = (beat_times[beat_index + 1] - beat_times[beat_index]) / 2
+                end_time = start_time + half_beat_duration
+                video_path = select_video_file(sorted_video_files, used_videos, video_directory)
+
+                if video_path is None:
+                    print("All videos have been used. Exiting.")
+                    break
+
+                try:
+                    video_clip = create_video_clip(video_path, start_time, end_time)
+                    clips.append(video_clip)
+                except Exception as e:
+                    print(f"Error processing video {video_path}: {e}")
+
+                beat_index += 1  # Move forward to the next beat
+
+            consecutive_beat_transitions = 0  # Reset consecutive beat transitions
 
     if not clips:
         print("No clips were successfully created. Exiting.")
@@ -95,3 +131,4 @@ def stitch_clips_together(audio_file, video_files, beat_times, video_directory):
     output_path = os.path.join(video_directory, "stitched_video.mp4")
     final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
     print(f"Stitched video saved as {output_path}")
+
