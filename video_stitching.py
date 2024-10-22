@@ -2,7 +2,7 @@ import random
 from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip
 import os
 
-def stitch_clips_together(audio_file, video_files, beat_times):
+def stitch_clips_together(audio_file, video_files, beat_times, video_directory):
     clips = []
     
     # Load the audio file
@@ -20,9 +20,6 @@ def stitch_clips_together(audio_file, video_files, beat_times):
 
     # Initialize a variable to keep track of the current position in the beat_times
     current_beat_index = 0
-
-    # Get the directory of the video files
-    video_directory = '/Users/liambrem/Desktop/Videos'  # Update this path as needed
 
     while current_beat_index < len(beat_times):
         # Randomly select the duration of the next clip
@@ -79,7 +76,11 @@ def stitch_clips_together(audio_file, video_files, beat_times):
     # Set the audio for the final video (only once to avoid issues)
     final_video = final_video.set_audio(audio)
 
+    # Construct the output path to save the video in the same directory as input videos
+    output_path = os.path.join(video_directory, "stitched_video.mp4")  # Save in the video directory
+
     # Export the final video
-    output_path = "stitched_video.mp4"  # You can customize this
     final_video.write_videofile(output_path, codec='libx264', audio_codec='aac')
     print(f"Stitched video saved as {output_path}")
+
+    
