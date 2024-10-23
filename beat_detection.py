@@ -26,7 +26,7 @@ def detect_beats(audio_path, start_bpm=120.0, tightness=100):
         # Convert beat frames to time (in seconds)
         beat_times = librosa.frames_to_time(beats, sr=sr)
 
-        print(f"Detected {len(beat_times)} beats at the following times (s): {beat_times}")
+        print(f"Detected {len(beat_times)} beats")
         return beat_times
     except Exception as e:
         print(f"An error occurred during beat detection: {e}")
