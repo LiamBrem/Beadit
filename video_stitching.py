@@ -1,6 +1,8 @@
 import random
 from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip
 import os
+import numpy as np
+import random
 
 def load_audio(audio_file):
     """Load the audio file."""
@@ -63,9 +65,13 @@ def show_long_clip_segments(video_path, total_clip_duration):
     return concatenate_videoclips(segments) if segments else None
 
 
-def add_long_clip_to_final(clips, video_path, beat_start_time, beat_end_time):
+def add_long_clip_to_final(clips, video_path, beat_start_time, beat_end_time, needs_cut):
     """Add long clip segments to the final clips list."""
-    long_clip = show_long_clip_segments(video_path, beat_end_time - beat_start_time)
+    if needs_cut:
+        long_clip = show_long_clip_segments(video_path, beat_end_time - beat_start_time)
+    else:
+        long_clip = create_video_clip(video_path, beat_start_time, beat_end_time)
+
     if long_clip:  # Check if the long clip was created successfully
         clips.append(long_clip)
         print(f"Added long clip: {video_path} to the final clips.")  # Debugging output
@@ -91,33 +97,29 @@ def stitch_clips_together(audio_file, video_files, beat_times, video_directory, 
     audio = load_audio(audio_file)
     sorted_video_files = get_sorted_video_files(video_files)
     used_videos = set()
-    
-    beat_index = 0
 
+    beat_index = 0
     while beat_index < len(beat_times) - 1:
-        # Select the video for the current pattern
         video_path = select_video_file(sorted_video_files, used_videos, video_directory)
         if video_path is None:
             print("All videos have been used. Exiting.")
             break
 
         print(f"Selected video path: {video_path}")  # Debugging output
+        video_basename = os.path.basename(video_path)
 
-        
-
-        # Check if the selected video is in long_clips
-        if os.path.basename(video_path) in long_clips:
+        if video_basename in long_clips:
             start_time = beat_times[beat_index]
             end_time = beat_times[beat_index + 2]
-            # Add long clip segments for the duration of two beats
-            beat_index += add_long_clip_to_final(clips, video_path, start_time, end_time)
-            #print(end_time - start_time)
+            beat_index += add_long_clip_to_final(clips, video_path, start_time, end_time, True)
+        elif random.random() <= 0.3:  # 20% chance to select a random video
+            start_time = beat_times[beat_index]
+            end_time = beat_times[beat_index + 2]
+            beat_index += add_long_clip_to_final(clips, video_path, start_time, end_time, False)
         else:
             start_time = beat_times[beat_index]
             end_time = beat_times[beat_index + 1]
-            # For regular clips, just use the start and end time of the beat
             beat_index += add_video_clip_to_final(clips, video_path, start_time, end_time)
-            #print(end_time - start_time)
 
     if not clips:
         print("No clips were successfully created. Exiting.")

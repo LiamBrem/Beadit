@@ -75,7 +75,7 @@ def list_audio_files_in_folder(folder_path):
     except Exception as e:
         print(f"An error occurred: {e}")
         return []
-
+    
 def main():
     default_folder_path = "/Users/liambrem/Desktop/Videos"
     options = ['Default Folder', 'Custom Path']
