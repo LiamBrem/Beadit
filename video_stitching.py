@@ -84,6 +84,11 @@ def add_video_clip_to_final(clips, video_path, start_time, end_time):
     """Add a regular video clip to the final clips list."""
     try:
         video_clip = create_video_clip(video_path, start_time, end_time)
+
+        target_fps = 30  # Set your desired FPS
+        new_resolution = (1080, 1920)  # Set your desired resolution
+        video_clip = video_clip.set_fps(target_fps).resize(new_resolution)
+
         clips.append(video_clip)
         #print(f"Added video clip: {video_path} to the final clips.")  # Debugging output
         return 1
