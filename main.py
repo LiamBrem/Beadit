@@ -107,6 +107,14 @@ def main():
         else:
             break
 
+    timelapse_clips = []
+    while True:
+        clip_id = prompt("Enter the 4-digit number following 'IMG_' for time-lapse clips (or press Enter to finish): ")
+        if clip_id:
+            timelapse_clips.append(f"IMG_{clip_id}.MOV")
+        else:
+            break
+
     print("Long clips to be processed:", long_clips)
 
     # Check if the Audio subfolder exists before attempting to process files
@@ -137,7 +145,7 @@ def main():
     # Proceed to detect beats if an audio file is available
     if output_audio_path:
         beat_times = detect_beats(output_audio_path).tolist()
-        stitch_clips_together(output_audio_path, videos, beat_times, folder_path, long_clips)
+        stitch_clips_together(output_audio_path, videos, beat_times, folder_path, long_clips, timelapse_clips)
     else:
         print("No audio file available for beat detection.")
 

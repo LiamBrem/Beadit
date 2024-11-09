@@ -96,7 +96,7 @@ def add_video_clip_to_final(clips, video_path, start_time, end_time):
         print(f"Error processing video {video_path}: {e}")
     return 0
 
-def stitch_clips_together(audio_file, video_files, beat_times, video_directory, long_clips):
+def stitch_clips_together(audio_file, video_files, beat_times, video_directory, long_clips, timelapse_clips):
     print("Long clips provided:", long_clips)  # Debugging output
     clips = []
     audio = load_audio(audio_file)
@@ -117,7 +117,7 @@ def stitch_clips_together(audio_file, video_files, beat_times, video_directory, 
             start_time = beat_times[beat_index]
             end_time = beat_times[beat_index + 2]
             beat_index += add_long_clip_to_final(clips, video_path, start_time, end_time, True)
-        elif random.random() <= 0.3:  # 20% chance to select a random video
+        elif video_basename in timelapse_clips or random.random() <= 0.3:  # 30% chance to select a random video
             start_time = beat_times[beat_index]
             end_time = beat_times[beat_index + 2]
             beat_index += add_long_clip_to_final(clips, video_path, start_time, end_time, False)
